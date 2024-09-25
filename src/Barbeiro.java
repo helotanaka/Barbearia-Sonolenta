@@ -1,30 +1,31 @@
-import java.util.concurrent.ThreadLocalRandom;
-
-public class Barbeiro extends Pessoa implements Runnable {
+public class Barbeiro implements Runnable {
+    private int id;
     private Barbearia barbearia;
 
     public Barbeiro(int id, Barbearia barbearia) {
-        super(id);
+        this.id = id;
         this.barbearia = barbearia;
+    }
+
+    public int getId() {
+        return id;
     }
 
     @Override
     public void run() {
-        try {
-            while (true) {
-                Cliente cliente = barbearia.proximoCliente();
+        while (true) {
+            try {
+                Cliente cliente = barbearia.proximoCliente(this); // O barbeiro pega o próximo cliente
                 if (cliente != null) {
-                    System.out.println("Barbeiro " + getId() + " cortando cabelo do Cliente " + cliente.getId());
-                    // Simula o tempo de corte de cabelo (1 a 3 segundos)
-                    Thread.sleep(ThreadLocalRandom.current().nextInt(1000, 3000));
-                    barbearia.corteTerminado(cliente);
-                    System.out.println("Cliente " + cliente.getId() + " terminou o corte... saindo da barbearia!");
-                } else {
-                    System.out.println("Barbeiro " + getId() + " indo dormir... não há clientes na barbearia.");
+                    System.out.println("Barbeiro " + getId() + " começou a atender o Cliente " + cliente.getId());
+                    synchronized (cliente) {
+                        // Simula o tempo de corte de cabelo
+                        Thread.sleep((long) (Math.random() * 2000 + 1000));
+                    }
                 }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 }
