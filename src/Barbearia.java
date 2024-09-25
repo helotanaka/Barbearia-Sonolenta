@@ -1,60 +1,42 @@
-import java.util.*;
-import java.util.concurrent.locks.*;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class Barbearia {
-    private final int n;  // Número de barbeiros
-    private final int m;  // Número de cadeiras de espera
-    private final List<Cliente> filaClientes;
-    private final Lock lock;
-    private final Condition condCliente;
-    private final Condition condBarbeiro;
+    private int totalCadeiras;
+    private Queue<Cliente> filaDeEspera; // Fila de objetos Cliente
 
-    public Barbearia(int n, int m) {
-        this.n = n;
-        this.m = m;
-        this.filaClientes = new LinkedList<>();
-        this.lock = new ReentrantLock();
-        this.condCliente = lock.newCondition();
-        this.condBarbeiro = lock.newCondition();
+    public Barbearia(int totalCadeiras) {
+        this.totalCadeiras = totalCadeiras;
+        this.filaDeEspera = new LinkedList<>();
     }
 
-    // Chamada pelos clientes
-    public boolean cortaCabelo(Cliente c) throws InterruptedException {
-        lock.lock();
-        try {
-            if (filaClientes.size() >= m) {
-                return false;  // Barbearia lotada
-            }
-            filaClientes.add(c);
-            condBarbeiro.signal();  // Notifica barbeiros que há clientes
-            while (!filaClientes.contains(c)) {
-                condCliente.await();  // Espera sua vez na fila
-            }
+    // Operação chamada pelos clientes:
+    public synchronized boolean cortaCabelo(Cliente cliente) {
+        if (filaDeEspera.size() == totalCadeiras) {
+            System.out.println("Cliente " + cliente.getId() + " tentou entrar na barbearia, mas está lotada... indo dar uma voltinha");
+            return false;
+        } else {
+            System.out.println("Cliente " + cliente.getId() + " esperando corte...");
+            filaDeEspera.add(cliente); // Adiciona o cliente à fila
+            notify();  // Notifica um barbeiro que há um cliente esperando
             return true;
-        } finally {
-            lock.unlock();
         }
     }
 
-    // Chamada pelos barbeiros
-    public Cliente proximoCliente() throws InterruptedException {
-        lock.lock();
-        try {
-            while (filaClientes.isEmpty()) {
-                condBarbeiro.await();  // Espera até ter clientes
-            }
-            return filaClientes.remove(0);
-        } finally {
-            lock.unlock();
+    // Operação chamada pelos barbeiros:
+    public synchronized Cliente proximoCliente(Barbeiro barbeiro) throws InterruptedException {
+        while (filaDeEspera.isEmpty()) {
+            System.out.println("Barbeiro " + barbeiro.getId() + " indo dormir um pouco... não há clientes na barbearia...");
+            wait(); // O barbeiro espera por um cliente
         }
+
+        Cliente cliente = filaDeEspera.poll(); // Remove o primeiro cliente da fila
+        System.out.println("Barbeiro " + barbeiro.getId() + " acordou! Começando os trabalhos com o Cliente " + cliente.getId());
+        return cliente; // O barbeiro começa a atender o cliente
     }
 
-    public void corteTerminado(Cliente c) {
-        lock.lock();
-        try {
-            condCliente.signalAll();  // Acorda todos os clientes na fila
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void corteTerminado(Cliente cliente) {
+        System.out.println("Cliente " + cliente.getId() + " terminou o corte... saindo da barbearia!");
+        notify(); // Notifica outro barbeiro que pode atender o próximo cliente
     }
 }
